@@ -1,0 +1,13 @@
+train: /content/gdrive/MyDrive/PRO_GARBAGE/Code/Garbage/data/waste/train
+val: /content/gdrive/MyDrive/PRO_GARBAGE/Code/Garbage/data/waste/valid
+test: /content/gdrive/MyDrive/PRO_GARBAGE/Code/Garbage/data/waste/test
+
+nc: 10
+names: ['chai', 'giay', 'hopgiay', 'khautrang', 'kimloai', 'lynhua', 'nhua', 'thucan', 'thuytinh', 'tuinilong']
+
+roboflow:
+  workspace: dpl302m-lwlob
+  project: waste-classification-i0drg
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/dpl302m-lwlob/waste-classification-i0drg/dataset/2
