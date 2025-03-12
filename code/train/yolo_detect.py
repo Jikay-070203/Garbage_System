@@ -127,7 +127,7 @@ elif source_type == 'folder':
 elif source_type == 'video':
     cap = cv2.VideoCapture(img_source)
 elif source_type == 'camera':
-    cap = cv2.VideoCapture(0)  # Sử dụng camera mặc định (index 0)
+    cap = cv2.VideoCapture(1)  # Sử dụng camera mặc định (index 0)
 
     # Set camera or video resolution if specified by user
     if user_res:
