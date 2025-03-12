@@ -1,0 +1,10 @@
+chai
+giay
+hopgiay
+khautrang
+kimloai
+lynhua
+nhua
+thucan
+thuytinh
+tuinilong

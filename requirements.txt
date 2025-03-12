@@ -1,3 +1,4 @@
+ultralytics
 imutils
 numpy
 tensorflow 

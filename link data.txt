@@ -1,9 +1,0 @@
-link data collection not label
-https://www.kaggle.com/work/collections/14897712
-
-link data have label
-https://universe.roboflow.com/dpl302m-lwlob/waste-classification-i0drg
-
-
-+
-https://app.roboflow.com/dpl302m-lwlob/waste-classification-i0drg/1
