@@ -3,13 +3,13 @@ import sys
 import argparse
 import glob
 import time
+import torch  # Thêm thư viện torch để quản lý GPU/CPU
 
 import cv2
 import numpy as np
 from ultralytics import YOLO
 
 # Define and parse user input arguments
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', help='Path to model file "best.pt")',
                     required=True)
@@ -26,7 +26,6 @@ parser.add_argument('--record', help='Record results from video or webcam and sa
 
 args = parser.parse_args()
 
-
 # Parse user inputs
 model_path = args.model
 img_source = args.source
@@ -42,6 +41,11 @@ if (not os.path.exists(model_path)):
 # Load the model into memory and get labemap
 model = YOLO(model_path, task='detect')
 labels = model.names
+
+# Initialize device (GPU if available, otherwise CPU)
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model.to(device)  # Chuyển model sang GPU hoặc CPU
+print(f'Using {device.upper()} for inference.')
 
 # Parse input to determine if image source is a file, folder, video, or USB camera
 img_ext_list = ['.jpg','.JPG','.jpeg','.JPEG','.png','.PNG','.bmp','.BMP']
@@ -210,7 +214,8 @@ while True:
     
     # Display detection results
     cv2.putText(frame, f'Number of objects: {object_count}', (10,40), cv2.FONT_HERSHEY_SIMPLEX, .7, (0,255,255), 2) # Draw total number of detected objects
-    cv2.imshow('YOLO detection results',frame) # Display image
+    cv2.putText(frame, f'Device: {device.upper()}', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, .7, (0, 255, 255), 2)  # Hiển thị thiết bị đang sử dụng
+    cv2.imshow('YOLO detection results', frame) # Display image
     if record: recorder.write(frame)
 
     # If inferencing on individual images, wait for user keypress before moving to next image. Otherwise, wait 5ms before moving to next frame.
@@ -224,7 +229,14 @@ while True:
     elif key == ord('s') or key == ord('S'): # Press 's' to pause inference
         cv2.waitKey()
     elif key == ord('p') or key == ord('P'): # Press 'p' to save a picture of results on this frame
-        cv2.imwrite('capture.png',frame)
+        cv2.imwrite('capture.png', frame)
+    elif key == ord('w') or key == ord('W'):  # Press 'w' to toggle between GPU and CPU
+        if device == 'cuda':
+            device = 'cpu'
+        else:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        model.to(device)  # Chuyển model sang thiết bị mới
+        print(f'Switched to {device.upper()} for inference.')
     
     # Calculate FPS for this frame
     t_stop = time.perf_counter()
