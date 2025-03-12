@@ -11,4 +11,3 @@ Pillow
 requests 
 psutil 
 imageio 
-tkinter 
