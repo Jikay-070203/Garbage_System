@@ -31,19 +31,21 @@ def select_model_and_source():
         print("Không có file model được chọn. Thoát chương trình.")
         sys.exit(0)
 
-    # Chọn input đầu vào (ảnh, video, hoặc thư mục)
-    input_type = input("Chọn loại input (1: Ảnh, 2: Video, 3: Thư mục ảnh): ")
+    # Chọn input đầu vào (ảnh, video, thư mục ảnh, hoặc camera)
+    input_type = input("Chọn loại input (1: Ảnh, 2: Video, 3: Thư mục ảnh, 4: Camera): ")
     if input_type == '1':
         source = select_file("Chọn file ảnh", [("Image files", "*.jpg *.jpeg *.png *.bmp")])
     elif input_type == '2':
         source = select_file("Chọn file video", [("Video files", "*.mp4 *.avi *.mov *.mkv")])
     elif input_type == '3':
         source = select_folder("Chọn thư mục ảnh")
+    elif input_type == '4':
+        source = 'camera'  # Sử dụng camera làm đầu vào
     else:
         print("Lựa chọn không hợp lệ. Thoát chương trình.")
         sys.exit(0)
 
-    if not source:
+    if not source and input_type != '4':  # Camera không cần chọn file
         print("Không có input được chọn. Thoát chương trình.")
         sys.exit(0)
 
@@ -71,11 +73,13 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model.to(device)  # Chuyển model sang GPU hoặc CPU
 print(f'Using {device.upper()} for inference.')
 
-# Parse input to determine if image source is a file, folder, video, or USB camera
+# Parse input to determine if image source is a file, folder, video, or camera
 img_ext_list = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.bmp', '.BMP']
 vid_ext_list = ['.avi', '.mov', '.mp4', '.mkv', '.wmv']
 
-if os.path.isdir(img_source):
+if img_source == 'camera':
+    source_type = 'camera'
+elif os.path.isdir(img_source):
     source_type = 'folder'
 elif os.path.isfile(img_source):
     _, ext = os.path.splitext(img_source)
@@ -98,7 +102,7 @@ if user_res:
 
 # Check if recording is valid and set up recording
 if record:
-    if source_type not in ['video', 'usb']:
+    if source_type not in ['video', 'camera']:
         print('Recording only works for video and camera sources. Please try again.')
         sys.exit(0)
     if not user_res:
@@ -122,6 +126,8 @@ elif source_type == 'folder':
             imgs_list.append(file)
 elif source_type == 'video':
     cap = cv2.VideoCapture(img_source)
+elif source_type == 'camera':
+    cap = cv2.VideoCapture(0)  # Sử dụng camera mặc định (index 0)
 
     # Set camera or video resolution if specified by user
     if user_res:
@@ -154,10 +160,10 @@ while True:
         frame = cv2.imread(img_filename)
         img_count = img_count + 1
 
-    elif source_type == 'video':  # If source is a video, load next frame from video file
+    elif source_type == 'video' or source_type == 'camera':  # If source is a video or camera, load next frame
         ret, frame = cap.read()
         if not ret:
-            print('Reached end of the video file. Exiting program.')
+            print('Reached end of the video file or camera is disconnected. Exiting program.')
             break
 
     # Resize frame to desired display resolution
@@ -201,8 +207,8 @@ while True:
             # Basic example: count the number of objects in the image
             object_count = object_count + 1
 
-    # Calculate and draw framerate (if using video source)
-    if source_type == 'video':
+    # Calculate and draw framerate (if using video or camera source)
+    if source_type == 'video' or source_type == 'camera':
         cv2.putText(frame, f'FPS: {avg_frame_rate:0.2f}', (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .7, (0, 255, 255), 2)  # Draw framerate
 
     # Display detection results
@@ -214,7 +220,7 @@ while True:
     # If inferencing on individual images, wait for user keypress before moving to next image. Otherwise, wait 5ms before moving to next frame.
     if source_type == 'image' or source_type == 'folder':
         key = cv2.waitKey()
-    elif source_type == 'video':
+    elif source_type == 'video' or source_type == 'camera':
         key = cv2.waitKey(5)
 
     if key == ord('q') or key == ord('Q'):  # Press 'q' to quit
@@ -247,7 +253,7 @@ while True:
 
 # Clean up
 print(f'Average pipeline FPS: {avg_frame_rate:.2f}')
-if source_type == 'video':
+if source_type == 'video' or source_type == 'camera':
     cap.release()
 if record: recorder.release()
 cv2.destroyAllWindows()
