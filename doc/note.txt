@@ -1,0 +1,13 @@
+1. Hỗ trợ thêm nhiều định dạng mô hình
+bao gồm:
+
+PyTorch (torch): .pt, .pth
+TensorFlow/Keras (tensorflow): .h5, .pb, .tflite
+ONNX (onnxruntime): .onnx
+OpenVINO (openvino): .xml + .bin
+TensorRT (tensorrt): .plan, .engine
+Pickle (pickle): .pkl
+MessagePack (msgpack): .msgpack
+SafeTensors (safetensors): .safetensors
+
++Nếu không có thư viện nào,  sẽ bỏ qua thay vì bị lỗi.
