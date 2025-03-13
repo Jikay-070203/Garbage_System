@@ -3,7 +3,7 @@ import os
 import shutil
 
 # path save
-output_dir = r"D:\SourceCode\ProGabage\system\convert\result_onnx"
+output_dir = r"D:\SourceCode\ProGabage\system\model\onnx"
 os.makedirs(output_dir, exist_ok=True)  
 
 # Load mô hình 
