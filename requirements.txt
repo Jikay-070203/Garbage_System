@@ -6,3 +6,4 @@ Pillow
 imageio
 onnxruntime
 onnxruntime-gpu
+onnx

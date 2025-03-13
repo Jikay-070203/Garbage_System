@@ -118,43 +118,52 @@ def load_model(model_path, device):
 # Function to load labels from .txt file
 def load_labels(labels_path):
     if not labels_path or not os.path.exists(labels_path):
-        return None
+        raise ValueError("A valid .txt file with class labels must be provided")
     with open(labels_path, 'r') as f:
         labels = [line.strip() for line in f.readlines() if line.strip()]
+    if not labels:
+        raise ValueError("The .txt file is empty or contains no valid labels")
     return {i: label for i, label in enumerate(labels)}
 
 # Function to preprocess frame for ONNX
 def preprocess_onnx(frame, input_size=(640, 640)):
     img = cv2.resize(frame, input_size)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-    img = np.transpose(img, (2, 0, 1))
-    img = np.expand_dims(img, axis=0)
+    img = np.transpose(img, (2, 0, 1))  # HWC to CHW
+    img = np.expand_dims(img, axis=0)   # Add batch dimension
     return img
 
 # Function to postprocess ONNX output
 def postprocess_onnx(outputs, orig_shape, input_size=(640, 640), conf_thresh=0.5):
-    output = outputs[0]
+    # Handle common ONNX output formats (e.g., YOLOv8: [1, 84, num_boxes])
+    output = outputs[0]  # Assume first output tensor
+    if len(output.shape) == 3:  # [batch, num_features, num_boxes]
+        output = output[0].T  # Transpose to [num_boxes, num_features]
+
     boxes = []
     scores = []
     class_ids = []
     
     for pred in output:
-        conf = pred[4]
-        if conf > conf_thresh:
-            cx, cy, w, h = pred[:4]
-            xmin = (cx - w/2) * orig_shape[1] / input_size[0]
-            ymin = (cy - h/2) * orig_shape[0] / input_size[1]
-            xmax = (cx + w/2) * orig_shape[1] / input_size[0]
-            ymax = (cy + h/2) * orig_shape[0] / input_size[1]
-            
-            class_scores = pred[5:]
-            class_id = np.argmax(class_scores)
-            score = conf * class_scores[class_id]
-            
-            if score > conf_thresh:
-                boxes.append([xmin, ymin, xmax, ymax])
-                scores.append(score)
-                class_ids.append(class_id)
+        # Extract confidence (assuming it's the 5th element or part of a different structure)
+        if len(pred) > 5:  # Standard YOLO format: [x, y, w, h, conf, class_scores...]
+            conf = pred[4]  # Confidence score
+            if conf > conf_thresh:
+                cx, cy, w, h = pred[:4]
+                class_scores = pred[5:]
+                class_id = np.argmax(class_scores)
+                score = conf * class_scores[class_id]
+
+                if score > conf_thresh:
+                    # Convert to absolute coordinates
+                    xmin = (cx - w/2) * orig_shape[1] / input_size[0]
+                    ymin = (cy - h/2) * orig_shape[0] / input_size[1]
+                    xmax = (cx + w/2) * orig_shape[1] / input_size[0]
+                    ymax = (cy + h/2) * orig_shape[0] / input_size[1]
+                    
+                    boxes.append([xmin, ymin, xmax, ymax])
+                    scores.append(score)
+                    class_ids.append(class_id)
     
     return np.array(boxes), np.array(scores), np.array(class_ids)
 
@@ -181,25 +190,12 @@ print(f"Running on {device.type.upper()}")
 # Load model
 model, model_type = load_model(model_path, device)
 
-# Load labels
-custom_labels = load_labels(labels_path)
-labels = custom_labels if custom_labels else (getattr(model, 'names', None) if model_type == 'yolo' else None)
-
-# Default to COCO labels for ONNX if no custom labels or YOLO labels
-if labels is None and model_type == 'onnx':
-    labels = {i: name for i, name in enumerate([
-        "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
-        "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-        "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
-        "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
-        "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
-        "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-        "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
-        "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
-        "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
-        "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
-        "toothbrush"
-    ])}
+# Load labels from .txt file (mandatory)
+try:
+    labels = load_labels(labels_path)
+except ValueError as e:
+    print(f"ERROR: {str(e)}")
+    sys.exit(0)
 
 # Parse input to determine source type
 img_ext_list = ['.jpg','.JPG','.jpeg','.JPEG','.png','.PNG','.bmp','.BMP']
@@ -365,15 +361,15 @@ while True:
     avg_frame_rate = np.mean(frame_rate_buffer)
 
 # Save results to CSV
-output_dir = os.path.abspath(os.path.join(os.getcwd(), "..", "system", "output"))
+output_dir = os.path.abspath(os.path.join(os.getcwd(),"system", "output"))
 os.makedirs(output_dir, exist_ok=True)
-csv_filename = f'detection_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+csv_filename = f'detection_results_{datetime.now().strftime("%d%m%Y_%H%M%S")}.csv'
 csv_path = os.path.join(output_dir, csv_filename)
 with open(csv_path, 'w', newline='') as csvfile:
     fieldnames = ['Class_ID', 'Class_Name', 'Count', 'Detection_Date', 'Student_ID']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
-    detection_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    detection_date = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     for class_id, class_name in labels.items():
         count = detection_results.get(class_name, 0)
         if count > 0:
@@ -387,7 +383,7 @@ with open(csv_path, 'w', newline='') as csvfile:
 
 # Clean up
 print(f'Average pipeline FPS: {avg_frame_rate:.2f}')
-print(f'Detection results saved to {csv_path}')
+print(f'Results saved to {csv_path}')
 if source_type in ['video', 'usb']:
     cap.release()
 elif source_type == 'picamera':
