@@ -8,3 +8,4 @@ onnxruntime
 onnxruntime-gpu
 onnx
 trism
+huggingface_hub

@@ -1,0 +1,30 @@
+name: "V11L"
+backend: "onnxruntime"
+max_batch_size: 8
+
+instance_group [
+  {
+    count: 2  #  GPU
+    kind: KIND_GPU
+  },
+  {
+    count: 2  #  CPU
+    kind: KIND_CPU
+  }
+]
+
+input [
+  {
+    name: "images"
+    data_type: TYPE_FP32
+    dims: [3, -1, -1]  #  -1 cho dynamic shape
+  }
+]
+
+output [
+  {
+    name: "output0"
+    data_type: TYPE_FP32
+    dims: [14, -1]  # Dynamic batch size và số lượng bounding boxes
+  }
+]
