@@ -10,44 +10,27 @@ import onnxruntime as ort
 import csv
 from datetime import datetime
 
-# Function to load class labels from a file
-def load_class_labels(file_path):
-    with open(file_path, 'r') as f:
-        class_labels = [line.strip() for line in f.readlines()]
-    return class_labels
-
-# Create GUI for parameter selection
+# GUI function (unchanged, omitted for brevity)
 def get_user_inputs():
     root = tk.Tk()
-    root.title("YOLO Detection Settings")
+    root.title("ONNX Detection Settings")
     
-    # Variables to store selections
     model_path = tk.StringVar()
-    classes_path = tk.StringVar()
     source = tk.StringVar()
     thresh = tk.DoubleVar(value=0.5)
     resolution = tk.StringVar(value="Auto")
     student_id = tk.StringVar()
     
-    # Model selection
-    tk.Label(root, text="Select YOLO Model:").grid(row=0, column=0, padx=5, pady=5)
+    tk.Label(root, text="Select ONNX Model:").grid(row=0, column=0, padx=5, pady=5)
     tk.Button(root, text="Browse", 
-             command=lambda: model_path.set(filedialog.askopenfilename(filetypes=[("Model files", "*.onnx")]))).grid(row=0, column=1)
+             command=lambda: model_path.set(filedialog.askopenfilename(filetypes=[("ONNX files", "*.onnx")]))).grid(row=0, column=1)
     model_entry = tk.Entry(root, textvariable=model_path)
     model_entry.grid(row=0, column=2, padx=5, pady=5)
     
-    # Classes file selection
-    tk.Label(root, text="Select Classes File:").grid(row=1, column=0, padx=5, pady=5)
-    tk.Button(root, text="Browse", 
-             command=lambda: classes_path.set(filedialog.askopenfilename(filetypes=[("Text files", "*.txt")]))).grid(row=1, column=1)
-    classes_entry = tk.Entry(root, textvariable=classes_path)
-    classes_entry.grid(row=1, column=2, padx=5, pady=5)
-    
-    # Source selection
-    tk.Label(root, text="Select Source:").grid(row=2, column=0, padx=5, pady=5)
+    tk.Label(root, text="Select Source:").grid(row=1, column=0, padx=5, pady=5)
     source_type = ttk.Combobox(root, textvariable=source, 
                               values=["Image File", "Image Folder", "Video File", "USB Camera 0", "Picamera 0"])
-    source_type.grid(row=2, column=1, padx=5, pady=5)
+    source_type.grid(row=1, column=1, padx=5, pady=5)
     source_type.set("USB Camera 0")
     
     def update_source_entry(*args):
@@ -65,19 +48,17 @@ def get_user_inputs():
     
     source_type.bind('<<ComboboxSelected>>', update_source_entry)
     source_entry = tk.Entry(root, textvariable=source)
-    source_entry.grid(row=2, column=2, padx=5, pady=5)
+    source_entry.grid(row=1, column=2, padx=5, pady=5)
     
-    # Confidence threshold
-    tk.Label(root, text="Confidence Threshold (0-1):").grid(row=3, column=0, padx=5, pady=5)
-    tk.Entry(root, textvariable=thresh).grid(row=3, column=1, padx=5, pady=5)
+    tk.Label(root, text="Confidence Threshold (0-1):").grid(row=2, column=0, padx=5, pady=5)
+    tk.Entry(root, textvariable=thresh).grid(row=2, column=1, padx=5, pady=5)
     
-    # Resolution
-    tk.Label(root, text="Resolution (WxH or Auto):").grid(row=4, column=0, padx=5, pady=5)
+    tk.Label(root, text="Resolution (WxH or Auto):").grid(row=3, column=0, padx=5, pady=5)
     resolution_combo = ttk.Combobox(root, textvariable=resolution, 
                                   values=["Auto", "640x480", "1280x720", "1920x1080"])
-    resolution_combo.grid(row=4, column=1, padx=5, pady=5)
+    resolution_combo.grid(row=3, column=1, padx=5, pady=5)
     resolution_entry = tk.Entry(root, textvariable=resolution)
-    resolution_entry.grid(row=4, column=2, padx=5, pady=5)
+    resolution_entry.grid(row=3, column=2, padx=5, pady=5)
     
     def update_resolution_entry(*args):
         if resolution.get() == "Auto":
@@ -87,22 +68,19 @@ def get_user_inputs():
     
     resolution_combo.bind('<<ComboboxSelected>>', update_resolution_entry)
     
-    # Student ID
-    tk.Label(root, text="Student ID:").grid(row=5, column=0, padx=5, pady=5)
-    tk.Entry(root, textvariable=student_id).grid(row=5, column=1, padx=5, pady=5)
+    tk.Label(root, text="Student ID:").grid(row=4, column=0, padx=5, pady=5)
+    tk.Entry(root, textvariable=student_id).grid(row=4, column=1, padx=5, pady=5)
     
-    # Submit button
     def submit():
         root.quit()
     
-    tk.Button(root, text="Start Detection", command=submit).grid(row=6, column=1, pady=10)
+    tk.Button(root, text="Start Detection", command=submit).grid(row=5, column=1, pady=10)
     
     root.mainloop()
     root.destroy()
     
     return {
         'model': model_path.get(),
-        'classes': classes_path.get(),
         'source': source.get(),
         'thresh': thresh.get(),
         'resolution': resolution.get() if resolution.get() != "Auto" else None,
@@ -114,29 +92,40 @@ args = get_user_inputs()
 
 # Parse user inputs
 model_path = args['model']
-classes_path = args['classes']
 img_source = args['source']
 min_thresh = args['thresh']
 user_res = args['resolution']
 student_id = args['student_id']
 
-# Load class labels from file
-if not os.path.exists(classes_path):
-    print('ERROR: Classes file path is invalid or file was not found.')
-    sys.exit(0)
-class_labels = load_class_labels(classes_path)
-
-# Check if model file exists and is valid
+# Check if model file exists
 if not os.path.exists(model_path):
     print('ERROR: Model path is invalid or model was not found.')
     sys.exit(0)
 
-# Initialize ONNX runtime session
-session = ort.InferenceSession(model_path)
+# Load class names from classes.txt
+with open('D:\SourceCode\ProGabage\system\data\classes.txt', 'r') as f:
+    labels = [line.strip() for line in f.readlines()]
+print(f"Number of classes in labels: {len(labels)}")
 
-# Parse input to determine if image source is a file, folder, video, or USB camera
-img_ext_list = ['.jpg','.JPG','.jpeg','.JPEG','.png','.PNG','.bmp','.BMP']
-vid_ext_list = ['.avi','.mov','.mp4','.mkv','.wmv']
+# Load ONNX model
+session = ort.InferenceSession(model_path)
+input_name = session.get_inputs()[0].name
+input_shape = session.get_inputs()[0].shape  # [0, 3, 0, 0]
+
+# Define default resolution
+DEFAULT_MODEL_W, DEFAULT_MODEL_H = 640, 640
+
+# Parse resolution
+resize = False
+if user_res:
+    resize = True
+    resW, resH = int(user_res.split('x')[0]), int(user_res.split('x')[1])
+else:
+    resW, resH = DEFAULT_MODEL_W, DEFAULT_MODEL_H
+
+# Parse input source (unchanged)
+img_ext_list = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.bmp', '.BMP']
+vid_ext_list = ['.avi', '.mov', '.mp4', '.mkv', '.wmv']
 
 if "Image Folder" in img_source or os.path.isdir(img_source):
     source_type = 'folder'
@@ -154,167 +143,157 @@ else:
     print(f'Input {img_source} is invalid. Please try again.')
     sys.exit(0)
 
-# Parse user-specified display resolution
-resize = False
-if user_res:
-    resize = True
-    resW, resH = int(user_res.split('x')[0]), int(user_res.split('x')[1])
-
-# Load or initialize image source and get source resolution if using Auto
+# Load or initialize image source
 if source_type == 'image':
     imgs_list = [img_source]
-    if not user_res:
-        frame = cv2.imread(img_source)
-        resH, resW = frame.shape[:2]
 elif source_type == 'folder':
-    imgs_list = []
-    filelist = glob.glob(img_source + '/*')
-    for file in filelist:
-        _, file_ext = os.path.splitext(file)
-        if file_ext in img_ext_list:
-            imgs_list.append(file)
-    if not user_res and imgs_list:
-        frame = cv2.imread(imgs_list[0])
-        resH, resW = frame.shape[:2]
-elif source_type == 'video' or source_type == 'usb':
-    if source_type == 'video': cap_arg = img_source
-    elif source_type == 'usb': cap_arg = usb_idx
-    cap = cv2.VideoCapture(cap_arg)
-    
-    if not user_res:
-        resW = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        resH = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    elif user_res:
-        cap.set(3, resW)
-        cap.set(4, resH)
-
+    imgs_list = [f for f in glob.glob(img_source + '/*') if os.path.splitext(f)[1] in img_ext_list]
+elif source_type in ['video', 'usb']:
+    cap = cv2.VideoCapture(img_source if source_type == 'video' else usb_idx)
 elif source_type == 'picamera':
     from picamera2 import Picamera2
     cap = Picamera2()
-    if not user_res:
-        config = cap.create_video_configuration(main={"format": 'RGB888'})
-        resW, resH = config['main']['size']
-    else:
-        cap.configure(cap.create_video_configuration(main={"format": 'RGB888', "size": (resW, resH)}))
+    cap.configure(cap.create_video_configuration(main={"format": 'RGB888', "size": (resW, resH)}))
     cap.start()
 
-# Set bounding box colors
+# Bounding box colors
 bbox_colors = [(164,120,87), (68,148,228), (93,97,209), (178,182,133), (88,159,106), 
               (96,202,231), (159,124,168), (169,162,241), (98,118,150), (172,176,184)]
 
-# Initialize control and status variables
+# Control and status variables
 avg_frame_rate = 0
 frame_rate_buffer = []
 fps_avg_len = 200
 img_count = 0
-detection_results = {}  # Dictionary to store detection counts per class
+detection_results = {}
 
-# Begin inference loop
+# Pre-processing function
+def preprocess(frame, target_w=DEFAULT_MODEL_W, target_h=DEFAULT_MODEL_H):
+    img = cv2.resize(frame, (target_w, target_h))
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = img.transpose((2, 0, 1))  # HWC to CHW
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
+    img = img.astype(np.float32) / 255.0  # Normalize to [0,1]
+    return img
+
+# Post-processing function
+def postprocess(outputs, conf_thres=0.5, iou_thres=0.5, img_shape=(DEFAULT_MODEL_H, DEFAULT_MODEL_W)):
+    output = outputs[0][0]  # [num_attributes, num_detections] -> [14, 8400]
+    print(f"Output shape: {output.shape}")
+    
+    # Transpose to [num_detections, num_attributes] -> [8400, 14]
+    output = output.transpose(1, 0)
+    print(f"Transposed output shape: {output.shape}")
+    
+    boxes = output[:, :4]  # [x_center, y_center, width, height]
+    scores = output[:, 4]  # Confidence scores
+    class_scores = output[:, 5:]  # Should be [8400, 9] for 9 classes (but we need to confirm)
+    print(f"Class scores shape: {class_scores.shape}")
+    print(f"Class scores sample: {class_scores[0]}")  # Debug print
+    
+    classes = np.argmax(class_scores, axis=1)
+    max_scores = scores * class_scores.max(axis=1)
+    print(f"Classes: {classes}")
+    print(f"Max scores: {max_scores[:10]}")  # Debug top 10 scores
+
+    # Convert from center-width-height to top-left-bottom-right
+    boxes[:, 0] = boxes[:, 0] - boxes[:, 2] / 2  # x_min
+    boxes[:, 1] = boxes[:, 1] - boxes[:, 3] / 2  # y_min
+    boxes[:, 2] = boxes[:, 0] + boxes[:, 2]      # x_max
+    boxes[:, 3] = boxes[:, 1] + boxes[:, 3]      # y_max
+
+    # Scale boxes back to original image size
+    h, w = img_shape
+    boxes[:, [0, 2]] *= resW / DEFAULT_MODEL_W  # Scale x
+    boxes[:, [1, 3]] *= resH / DEFAULT_MODEL_H  # Scale y
+
+    mask = max_scores > conf_thres
+    boxes, scores, classes = boxes[mask], max_scores[mask], classes[mask]
+    print(f"Filtered classes: {classes}")
+
+    if len(boxes) > 0:
+        indices = cv2.dnn.NMSBoxes(boxes.tolist(), scores.tolist(), conf_thres, iou_thres)
+        return [(boxes[i], scores[i], classes[i]) for i in indices]
+    return []
+
+# Inference loop
 while True:
     t_start = time.perf_counter()
 
-    if source_type == 'image' or source_type == 'folder':
+    if source_type in ['image', 'folder']:
         if img_count >= len(imgs_list):
             print('All images have been processed.')
             break
-        img_filename = imgs_list[img_count]
-        frame = cv2.imread(img_filename)
-        img_count = img_count + 1
-    
-    elif source_type == 'video':
+        frame = cv2.imread(imgs_list[img_count])
+        img_count += 1
+    elif source_type in ['video', 'usb']:
         ret, frame = cap.read()
         if not ret:
-            print('Reached end of the video file.')
+            print('End of video or camera feed.')
             break
-    
-    elif source_type == 'usb':
-        ret, frame = cap.read()
-        if (frame is None) or (not ret):
-            print('Unable to read frames from the camera.')
-            break
-
     elif source_type == 'picamera':
         frame = cap.capture_array()
-        if frame is None:
-            print('Unable to read frames from the Picamera.')
-            break
 
     if resize:
         frame = cv2.resize(frame, (resW, resH))
 
-    # Preprocess the frame for ONNX model
-    input_shape = session.get_inputs()[0].shape
-    input_size = (input_shape[2], input_shape[3])
-    blob = cv2.dnn.blobFromImage(frame, 1/255.0, input_size, swapRB=True, crop=False)
-    
+    # Preprocess frame
+    input_tensor = preprocess(frame, DEFAULT_MODEL_W, DEFAULT_MODEL_H)
+
     # Run inference
-    outputs = session.run(None, {session.get_inputs()[0].name: blob})
-    
-    # Parse outputs
-    detections = outputs[0]
+    outputs = session.run(None, {input_name: input_tensor})
+    detections = postprocess(outputs, min_thresh, img_shape=frame.shape[:2])
+
     object_count = 0
-
-    for detection in detections[0]:
-        scores = detection[5:]
-        class_id = np.argmax(scores)
-        confidence = scores[class_id]
-
-        if confidence > min_thresh:
-            xmin, ymin, xmax, ymax = (detection[0:4] * np.array([resW, resH, resW, resH])).astype(int)
-            color = bbox_colors[class_id % 10]
-            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
-
-            label = f'{class_labels[class_id]}: {int(confidence*100)}%'
-            labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            label_ymin = max(ymin, labelSize[1] + 10)
-            cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), color, cv2.FILLED)
-            cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
-
-            object_count = object_count + 1
-            detection_results[class_labels[class_id]] = detection_results.get(class_labels[class_id], 0) + 1
+    for box, conf, cls_idx in detections:
+        if int(cls_idx) >= len(labels):
+            print(f"Warning: Class index {cls_idx} exceeds number of labels ({len(labels)}). Skipping.")
+            continue
+        xmin, ymin, xmax, ymax = box.astype(int)
+        classname = labels[int(cls_idx)]
+        color = bbox_colors[int(cls_idx) % 10]
+        cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+        label = f'{classname}: {int(conf*100)}%'
+        labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        label_ymin = max(ymin, labelSize[1] + 10)
+        cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), color, cv2.FILLED)
+        cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        object_count += 1
+        detection_results[classname] = detection_results.get(classname, 0) + 1
 
     if source_type in ['video', 'usb', 'picamera']:
         cv2.putText(frame, f'FPS: {avg_frame_rate:0.2f}', (10,20), cv2.FONT_HERSHEY_SIMPLEX, .7, (0,255,255), 2)
-    
     cv2.putText(frame, f'Number of objects: {object_count}', (10,40), cv2.FONT_HERSHEY_SIMPLEX, .7, (0,255,255), 2)
-    cv2.imshow('YOLO detection results',frame)
+    cv2.imshow('ONNX Detection Results', frame)
 
-    if source_type in ['image', 'folder']:
-        key = cv2.waitKey()
-    else:
-        key = cv2.waitKey(5)
-    
+    key = cv2.waitKey(5 if source_type in ['video', 'usb', 'picamera'] else 0)
     if key in [ord('q'), ord('Q')]:
         break
     elif key in [ord('s'), ord('S')]:
         cv2.waitKey()
     elif key in [ord('p'), ord('P')]:
-        cv2.imwrite('capture.png',frame)
-    
-    t_stop = time.perf_counter()
-    frame_rate_calc = float(1/(t_stop - t_start))
+        cv2.imwrite('capture.png', frame)
 
-    if len(frame_rate_buffer) >= fps_avg_len:
-        frame_rate_buffer.pop(0)
+    t_stop = time.perf_counter()
+    frame_rate_calc = 1 / (t_stop - t_start)
     frame_rate_buffer.append(frame_rate_calc)
+    if len(frame_rate_buffer) > fps_avg_len:
+        frame_rate_buffer.pop(0)
     avg_frame_rate = np.mean(frame_rate_buffer)
 
-# Create output directory one level up if it doesn't exist
-output_dir = os.path.abspath(os.path.join(os.getcwd(),"system", "output"))
+# Save results to CSV (unchanged)
+output_dir = os.path.abspath(os.path.join(os.getcwd(), "system", "output"))
 os.makedirs(output_dir, exist_ok=True)
-
-# Save results to CSV in the output directory
 csv_filename = f'detection_results_{datetime.now().strftime("%d_%m_%Y_%H_%M_%S")}.csv'
 csv_path = os.path.join(output_dir, csv_filename)
 with open(csv_path, 'w', newline='') as csvfile:
     fieldnames = ['Class_ID', 'Class_Name', 'Count', 'Detection_Date', 'Student_ID']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    
     writer.writeheader()
     detection_date = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-    for class_id, class_name in enumerate(class_labels):
+    for class_id, class_name in enumerate(labels):
         count = detection_results.get(class_name, 0)
-        if count > 0:  # Only write rows for detected classes
+        if count > 0:
             writer.writerow({
                 'Class_ID': class_id,
                 'Class_Name': class_name,

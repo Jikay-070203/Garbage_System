@@ -9,3 +9,6 @@ onnxruntime-gpu
 onnx
 trism
 huggingface_hub
+uvicorn
+fastapi
+python-multipart
