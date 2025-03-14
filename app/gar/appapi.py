@@ -18,7 +18,7 @@ model = None
 async def load_model():
     global model
     model_path = r"D:\SourceCode\ProGabage\system\models\pt\v11L\model\best.pt"  
-    model = YOLO(model_path)  
+    model = YOLO(model_path)
     model.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
 
 @app.post("/detect/")
@@ -51,7 +51,7 @@ async def detect(
             conf = detection.conf.item()
 
             if conf > threshold:
-                color = (0, 255, 0)  
+                color = (0, 255, 0)  # Green color for bounding box
                 cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
                 label = f'{class_name}: {conf:.2f}'
                 cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
