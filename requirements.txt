@@ -7,3 +7,4 @@ imageio
 onnxruntime
 onnxruntime-gpu
 onnx
+trism
